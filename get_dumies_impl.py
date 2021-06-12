@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from pandas.core.algorithms import unique
+import numbers
 
 
 def list_unique(list1):
@@ -31,7 +32,6 @@ def get_dummies(data,
                 if elem_data == elem_header:
                     new_table_once[i, index] = 1
                     i += 1
-        
 
         nan_column = [0 for i in range(len(data))]
         for index, head in enumerate(headers_list):
@@ -54,7 +54,7 @@ def get_dummies(data,
             nan_column = np.expand_dims(nan_column, axis=1)
             new_table_once = np.concatenate(
                 (new_table_once, nan_column), axis=1)
-        
+
         if drop_first:
             new_table_once = np.array(new_table_once[..., 1::])
             headers_list = list(headers_list)
@@ -62,7 +62,7 @@ def get_dummies(data,
 
         if prefix is not None:
             headers_list = [
-                prefix + prefix_sep + str(x) for x in headers_list]
+                prefix + prefix_sep + str(float(head) if isinstance(head, numbers.Number) else head) for head in headers_list]
 
         result_Data_Frame = pd.DataFrame(new_table_once, columns=headers_list)
         return result_Data_Frame
@@ -70,7 +70,9 @@ def get_dummies(data,
     def List_Procesing(data: list):
         if len(data) == 0:
             return 'Data not have elements'
+
         headers_list = unique(data)
+
         unique_counts = len(headers_list)
 
         new_table_once = np.zeros(
@@ -98,13 +100,12 @@ def get_dummies(data,
         headers_list = list(headers_list)
         if np.nan in headers_list:
             headers_list.remove(np.nan)
-        
+
         if dummy_na:
             headers_list.append(np.nan)
             nan_column = np.expand_dims(nan_column, axis=1)
             new_table_once = np.concatenate(
                 (new_table_once, nan_column), axis=1)
-            
 
         if drop_first:
             new_table_once = np.array(new_table_once[..., 1::])
@@ -113,7 +114,7 @@ def get_dummies(data,
 
         if prefix is not None:
             headers_list = [
-                prefix + prefix_sep + str(x) for x in headers_list]
+                prefix + prefix_sep + str(float(head) if isinstance(head, numbers.Number) else head) for head in headers_list]
 
         result_Data_Frame = pd.DataFrame(new_table_once, columns=headers_list)
         return result_Data_Frame
@@ -139,13 +140,13 @@ def get_dummies(data,
                             prefix_decomposition_coloumn = prefix
 
                         decomposition_column = get_dummies(new_table_once[column],
-                                                           prefix=prefix_decomposition_coloumn, 
-                                                           prefix_sep=prefix_sep, 
+                                                           prefix=prefix_decomposition_coloumn,
+                                                           prefix_sep=prefix_sep,
                                                            dummy_na=dummy_na)
                         new_table_once = new_table_once.drop(
                             str(headers_list[index]), axis=1)
                         new_table_once = pd.concat(
-                            [new_table_once, decomposition_column], axis=1)                            
+                            [new_table_once, decomposition_column], axis=1)
         else:
             for index, column in enumerate(data_from_DataFrame):
                 for elem in column:
@@ -157,8 +158,8 @@ def get_dummies(data,
                             prefix_decomposition_coloumn = prefix
 
                         decomposition_column = get_dummies(decomposition_column,
-                                                           prefix=prefix_decomposition_coloumn, 
-                                                           prefix_sep=prefix_sep, 
+                                                           prefix=prefix_decomposition_coloumn,
+                                                           prefix_sep=prefix_sep,
                                                            dummy_na=dummy_na)
 
                         new_table_once = new_table_once.drop(
