@@ -1,13 +1,200 @@
 import numpy as np
 import pandas as pd
 from pandas.core.algorithms import unique
-import numbers
 
 
-def list_unique(list1):
-    list_set = set(list1)
-    unique_list = (list(list_set))
-    return unique_list
+class Series_List_Utils_Processing:
+    def get_unique_headers_list(self, data):
+        return list(unique(data))
+
+    def create_get_dummies_style_table(self, data, dtype):
+        headers_list = unique(data)
+
+        column_counts = self.__get_column_count(data)
+        row_counts = self.__get_row_count(data)
+
+        new_table_once = self.__get_zeros_table(
+            row_counts, column_counts, dtype)
+        return self.__dummy_processing(new_table_once, data, headers_list)
+
+    def __get_column_count(self, data):
+        return len(unique(data))
+
+    def __get_row_count(self, data):
+        return data.shape[0] if isinstance(data, pd.Series) else len(data)
+
+    def __get_zeros_table(self, row_count, columns_count, dtype):
+        return np.zeros(shape=(row_count, columns_count), dtype=dtype)
+
+    def __dummy_processing(self, new_table_once, data, headers_list):
+        row = 0
+        for elem_data in data:
+            for column,  elem_header in enumerate(headers_list):
+                if self.__compare_elements(elem_data, elem_header):
+                    new_table_once = self.__put_the_unit_in_table(
+                        new_table_once, row, column)
+                    row = self.__next_row(row)
+                    break
+        return new_table_once
+
+    def __compare_elements(self, element1, element2):
+        return str(element1) == str(element2)
+
+    def __put_the_unit_in_table(self, new_table_once, row, column):
+        new_table_once[row, column] = 1
+        return new_table_once
+
+    def __next_row(self, row):
+        row += 1
+        return row
+
+    def drop_nan_column_from_dummy_table(self, data, new_table_once, headers_list):
+        nan_column = self.__get_nan_column_of_data_legth(data)
+
+        for index, head in enumerate(headers_list):
+            if self.__is_nan_column(head):
+                new_table_once, nan_column = self.__drop_nan_column_from_table(
+                    new_table_once, index, headers_list)
+        headers_list = self.__remove_nan_header_from_header_list(headers_list)
+        return nan_column, new_table_once
+
+    def __get_nan_column_of_data_legth(self, data):
+        return [0 for i in range(len(data))]
+
+    def __is_nan_column(self, head):
+        return str('nan') == str(head)
+
+    def __drop_nan_column_from_table(self, new_table_once, index, headers_list):
+        left_table = self.__get_left_table_from_nan_column(
+            new_table_once, index)
+        nan_column = self.__get_nan_column_from_table(new_table_once, index)
+
+        if self.__is_nan_column_last_header(index, headers_list):
+            return left_table.copy(), nan_column
+
+        right_table = self.__get_right_table_from_nan_column(
+            new_table_once, index)
+
+        return self.__concat_two_tables(left_table, right_table), nan_column
+
+    def __get_left_table_from_nan_column(self, new_table_once, index):
+        return np.array(new_table_once[..., 0:index:])
+
+    def __get_nan_column_from_table(self, new_table_once, index):
+        return np.array(new_table_once[..., index])
+
+    def __is_nan_column_last_header(self, index, headers_list):
+        return index == len(headers_list)-1
+
+    def __get_right_table_from_nan_column(self, new_table_once, index):
+        return np.array(new_table_once[..., index+1::])
+
+    def __remove_nan_header_from_header_list(self, headers_list):
+        return headers_list.remove(np.nan) if np.nan in headers_list else headers_list
+
+    def __concat_two_tables(self, left_table, right_table):
+        return np.concatenate((left_table, right_table), axis=1)
+
+    def add_nan_column(self, new_table_once, headers_list, nan_column):
+        self.__add_nan_head_in_header_list(headers_list)
+        nan_column = self.__add_dims_to_correct_concat(nan_column)
+        new_table_once = self.__concat_two_tables(new_table_once, nan_column)
+        return new_table_once, headers_list
+
+    def __add_nan_head_in_header_list(self, headers_list):
+        headers_list.append(np.nan)
+
+    def __add_dims_to_correct_concat(self, nan_column):
+        return np.expand_dims(nan_column, axis=1)
+
+    def drop_first_column(self, new_table_once, headers_list):
+        new_table_once = self.__overwrite_table_without_the_first_column(
+            new_table_once)
+        self.__remove_first_head_from_header_list(headers_list)
+        return new_table_once, headers_list
+
+    def __overwrite_table_without_the_first_column(self, new_table_once):
+        return np.array(new_table_once[..., 1::])
+
+    def __remove_first_head_from_header_list(self, headers_list):
+        headers_list.pop(0)
+
+    def add_prefix(self, headers_list, prefix, prefix_sep):
+        consist_char = self.__is_have_char_element_in_header(headers_list)
+        return self.__add_prefix(headers_list, 
+                                prefix, 
+                                prefix_sep) if consist_char else self.__add_prefix_only_numbers_headers(headers_list, 
+                                                                                                        prefix, 
+                                                                                                        prefix_sep)
+
+
+    def __is_have_char_element_in_header(self, headers_list):
+        for head in headers_list:
+            if isinstance(head, str):
+                return True
+        return False
+
+    def __add_prefix(self, headers_list, prefix, prefix_sep):
+        return [prefix + prefix_sep + str(head) for head in headers_list]
+
+    def __add_prefix_only_numbers_headers(self, headers_list, prefix, prefix_sep):
+        return [prefix + prefix_sep + str(float(head)) for head in headers_list]
+
+
+class DataFrame_Utils_Processing:
+    def columns_procesing(self, new_table_once, columns_list, headers_list, prefix,
+                          prefix_sep, dummy_na_status,drop_first_status):
+
+        for column in columns_list:
+            for index, head in enumerate(headers_list):
+                if self.__compare_column_and_header(column, head):
+                    prefix_decomposition_coloumn = self.__prefix_determinant(headers_list, index, prefix)
+
+                    decomposition_column = get_dummies(new_table_once[column],
+                                                       prefix=prefix_decomposition_coloumn,
+                                                       prefix_sep=prefix_sep,
+                                                       dummy_na=dummy_na_status,
+                                                       drop_first=drop_first_status)
+
+                    new_table_once = self.__drop_last_version_column(new_table_once, headers_list, index)
+                    new_table_once = self.__concat_two_tables(new_table_once, decomposition_column)
+
+        return new_table_once
+
+    def __compare_column_and_header(self, column, head):
+        return column == head
+
+    def __prefix_determinant(self, headers_list, index, prefix):
+        return prefix if prefix is not None else headers_list[index]
+
+    def __drop_last_version_column(self, new_table_once, headers_list, index):
+        return new_table_once.drop(str(headers_list[index]), axis=1)
+
+    def __concat_two_tables(self, left_table, second_table):
+        list_tables = [left_table, second_table]
+        return pd.concat(list_tables, axis=1)
+
+
+
+    def default_DataFrame_Procesing(self, new_table_once, data_values, headers_list, prefix,
+                                    prefix_sep, dummy_na_status, drop_first_status):
+
+        for index, column in enumerate(data_values):
+            for elem in column:
+                if isinstance(elem, str):
+                    decomposition_column = list(column)
+                    prefix_decomposition_coloumn = self.__prefix_determinant(headers_list, index, prefix)
+
+                    decomposition_column = get_dummies(decomposition_column,
+                                                       prefix=prefix_decomposition_coloumn,
+                                                       prefix_sep=prefix_sep,
+                                                       dummy_na=dummy_na_status,
+                                                       drop_first=drop_first_status)
+
+                    new_table_once = self.__drop_last_version_column(new_table_once, headers_list, index)
+                    new_table_once = self.__concat_two_tables(new_table_once, decomposition_column)
+                    break
+        return new_table_once
 
 
 def get_dummies(data,
@@ -15,164 +202,95 @@ def get_dummies(data,
                 prefix_sep='_',
                 dummy_na=False,
                 columns=None,
-                sparse=False,
                 drop_first=False,
                 dtype=np.uint8):
 
-    def Series_Procesing(data: pd.Series):
-        if len(data) == 0:
+    def empty(data):
+        return len(data) == 0
+
+    def data_processing(data):
+        utils = Series_List_Utils_Processing()
+
+        if empty(data):
             return 'Data not have elements'
-        headers_list = unique(data)
-        unique_counts = len(headers_list)
-        new_table_once = np.zeros(
-            shape=(data.shape[0], unique_counts), dtype=dtype)
-        i = 0
-        for elem_data in data:
-            for index,  elem_header in enumerate(headers_list):
-                if elem_data == elem_header:
-                    new_table_once[i, index] = 1
-                    i += 1
 
-        nan_column = [0 for i in range(len(data))]
-        for index, head in enumerate(headers_list):
-            if str('nan') == str(head):
-                temp1 = np.array(new_table_once[..., 0:index:])
-                nan_column = np.array(new_table_once[..., index])
+        headers_list = utils.get_unique_headers_list(data)
 
-                if index == len(headers_list)-1:
-                    new_table_once = temp1.copy()
-                    break
-                temp2 = np.array(new_table_once[..., index+1::])
-                new_table_once = np.concatenate((temp1, temp2), axis=1)
+        new_table_once = utils.create_get_dummies_style_table(data, dtype)
 
-        headers_list = list(headers_list)
-        if np.nan in headers_list:
-            headers_list.remove(np.nan)
+        nan_column, new_table_once = utils.drop_nan_column_from_dummy_table(
+            data, new_table_once, headers_list)
 
         if dummy_na:
-            headers_list.append(np.nan)
-            nan_column = np.expand_dims(nan_column, axis=1)
-            new_table_once = np.concatenate(
-                (new_table_once, nan_column), axis=1)
+            new_table_once, headers_list = utils.add_nan_column(
+                new_table_once, headers_list, nan_column)
 
         if drop_first:
-            new_table_once = np.array(new_table_once[..., 1::])
-            headers_list = list(headers_list)
-            headers_list.pop(0)
+            new_table_once, headers_list = utils.drop_first_column(
+                new_table_once, headers_list)
 
         if prefix is not None:
-            headers_list = [
-                prefix + prefix_sep + str(float(head) if isinstance(head, numbers.Number) else head) for head in headers_list]
+            headers_list = utils.add_prefix(headers_list, prefix, prefix_sep)
 
-        result_Data_Frame = pd.DataFrame(new_table_once, columns=headers_list)
-        return result_Data_Frame
+        # index_list_sort = [i[0] for i in sorted(enumerate(headers_list), key=lambda x:x[1])]
+        # temp_table = new_table_once.T
+        # empty_new_table = list()
 
-    def List_Procesing(data: list):
-        if len(data) == 0:
+        # for index_sorted in index_list_sort:
+        #     for index, column in enumerate(temp_table):
+        #         if index_sorted == index:
+        #             empty_new_table.append(column)
+
+        # new_table_once = np.array(empty_new_table).T
+
+        # headers_list = sorted(headers_list)
+        return pd.DataFrame(new_table_once, columns=headers_list)
+
+    def Series_Processing(data: pd.Series):
+        return data_processing(data)
+
+    def List_Processing(data: list):
+        return data_processing(data)
+
+    def Numpy_Array_Processing(data: np.ndarray):
+        if data.ndim > 1:
+            return 'Data must be 1-dimensional'
+        return data_processing(data)
+
+    def DataFrame_Processing(data: pd.DataFrame):
+        utils = DataFrame_Utils_Processing()
+
+        if empty(data):
             return 'Data not have elements'
 
-        headers_list = unique(data)
-
-        unique_counts = len(headers_list)
-
-        new_table_once = np.zeros(
-            shape=(len(data), unique_counts), dtype=dtype)
-        i = 0
-        for elem_data in data:
-            for index,  elem_header in enumerate(headers_list):
-                if str(elem_data) == str(elem_header):
-                    new_table_once[i, index] = 1
-                    i += 1
-                    break
-
-        nan_column = [0 for i in range(len(data))]
-        for index, head in enumerate(headers_list):
-            if str('nan') == str(head):
-                temp1 = np.array(new_table_once[..., 0:index:])
-                nan_column = np.array(new_table_once[..., index])
-
-                if index == len(headers_list)-1:
-                    new_table_once = temp1.copy()
-                    break
-                temp2 = np.array(new_table_once[..., index+1::])
-                new_table_once = np.concatenate((temp1, temp2), axis=1)
-
-        headers_list = list(headers_list)
-        if np.nan in headers_list:
-            headers_list.remove(np.nan)
-
-        if dummy_na:
-            headers_list.append(np.nan)
-            nan_column = np.expand_dims(nan_column, axis=1)
-            new_table_once = np.concatenate(
-                (new_table_once, nan_column), axis=1)
-
-        if drop_first:
-            new_table_once = np.array(new_table_once[..., 1::])
-            headers_list = list(headers_list)
-            headers_list.pop(0)
-
-        if prefix is not None:
-            headers_list = [
-                prefix + prefix_sep + str(float(head) if isinstance(head, numbers.Number) else head) for head in headers_list]
-
-        result_Data_Frame = pd.DataFrame(new_table_once, columns=headers_list)
-        return result_Data_Frame
-
-    def DataFrame_Procesing(data: pd.DataFrame):
-        if len(data) == 0:
-            return 'Data not have elements'
         new_table_once = pd.DataFrame(data)
         headers_list = list(unique(data.columns))
-        unique_counts = len(headers_list)
         data_from_DataFrame = data.values
-        decomposition_column = None
         data_from_DataFrame = data_from_DataFrame.T
-        prefix_decomposition_coloumn = None
 
         if columns is not None:
-            for index, head in enumerate(headers_list):
-                for column in columns:
-                    if column == head:
-                        prefix_decomposition_coloumn = headers_list[index]
+            return utils.columns_procesing(new_table_once,
+                                           columns,
+                                           headers_list,
+                                           prefix,
+                                           prefix_sep,
+                                           dummy_na,
+                                           drop_first_status=drop_first)
 
-                        if prefix is not None:
-                            prefix_decomposition_coloumn = prefix
+        return utils.default_DataFrame_Procesing(new_table_once,
+                                                 data_from_DataFrame,
+                                                 headers_list,
+                                                 prefix,
+                                                 prefix_sep,
+                                                 dummy_na,
+                                                 drop_first_status=drop_first)
 
-                        decomposition_column = get_dummies(new_table_once[column],
-                                                           prefix=prefix_decomposition_coloumn,
-                                                           prefix_sep=prefix_sep,
-                                                           dummy_na=dummy_na)
-                        new_table_once = new_table_once.drop(
-                            str(headers_list[index]), axis=1)
-                        new_table_once = pd.concat(
-                            [new_table_once, decomposition_column], axis=1)
-        else:
-            for index, column in enumerate(data_from_DataFrame):
-                for elem in column:
-                    if isinstance(elem, str):
-                        decomposition_column = list(column)
-                        prefix_decomposition_coloumn = headers_list[index]
-
-                        if prefix is not None:
-                            prefix_decomposition_coloumn = prefix
-
-                        decomposition_column = get_dummies(decomposition_column,
-                                                           prefix=prefix_decomposition_coloumn,
-                                                           prefix_sep=prefix_sep,
-                                                           dummy_na=dummy_na)
-
-                        new_table_once = new_table_once.drop(
-                            str(headers_list[index]), axis=1)
-                        new_table_once = pd.concat(
-                            [new_table_once, decomposition_column], axis=1)
-                        break
-
-        return new_table_once
 
     if isinstance(data, pd.Series):
-        return Series_Procesing(data)
+        return Series_Processing(data)
     if isinstance(data, list):
-        return List_Procesing(data)
+        return List_Processing(data)
     if isinstance(data, pd.DataFrame):
-        return DataFrame_Procesing(data)
+        return DataFrame_Processing(data)
+    if isinstance(data, np.ndarray):
+        return Numpy_Array_Processing(data)

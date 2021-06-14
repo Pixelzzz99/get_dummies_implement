@@ -1,5 +1,4 @@
 import pandas as pd
-import unittest
 import get_dumies_impl  
 
 class TestGetDumies:
