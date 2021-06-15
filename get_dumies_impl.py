@@ -7,6 +7,7 @@ class Series_List_Utils_Processing:
     def get_unique_headers_list(self, data):
         return list(unique(data))
 
+    '''*********Data convert Dummy style Table*********'''
     def create_get_dummies_style_table(self, data, dtype):
         headers_list = unique(data)
 
@@ -47,7 +48,10 @@ class Series_List_Utils_Processing:
     def __next_row(self, row):
         row += 1
         return row
+    '''*************************************************'''
 
+
+    '''******* Drop Nan Column From Table (is default) ****************'''
     def drop_nan_column_from_dummy_table(self, data, new_table_once, headers_list):
         nan_column = self.__get_nan_column_of_data_legth(data)
 
@@ -94,7 +98,10 @@ class Series_List_Utils_Processing:
 
     def __concat_two_tables(self, left_table, right_table):
         return np.concatenate((left_table, right_table), axis=1)
+    '''*************************************************'''
 
+
+    '''****** Add Nan Column ********************************'''
     def add_nan_column(self, new_table_once, headers_list, nan_column):
         self.__add_nan_head_in_header_list(headers_list)
         nan_column = self.__add_dims_to_correct_concat(nan_column)
@@ -118,15 +125,15 @@ class Series_List_Utils_Processing:
 
     def __remove_first_head_from_header_list(self, headers_list):
         headers_list.pop(0)
+    '''*************************************************'''
 
+
+    '''***** Add Prefix and PrefixSep Methods ******'''
     def add_prefix(self, headers_list, prefix, prefix_sep):
         consist_char = self.__is_have_char_element_in_header(headers_list)
-        return self.__add_prefix(headers_list, 
-                                prefix, 
-                                prefix_sep) if consist_char else self.__add_prefix_only_numbers_headers(headers_list, 
-                                                                                                        prefix, 
-                                                                                                        prefix_sep)
-
+        if consist_char:
+            return self.__add_default_prefix(headers_list, prefix, prefix_sep)
+        return self.__add_prefix_only_numbers_headers(headers_list, prefix, prefix_sep)        
 
     def __is_have_char_element_in_header(self, headers_list):
         for head in headers_list:
@@ -134,14 +141,57 @@ class Series_List_Utils_Processing:
                 return True
         return False
 
-    def __add_prefix(self, headers_list, prefix, prefix_sep):
+    def __add_default_prefix(self, headers_list, prefix, prefix_sep):
         return [prefix + prefix_sep + str(head) for head in headers_list]
 
     def __add_prefix_only_numbers_headers(self, headers_list, prefix, prefix_sep):
         return [prefix + prefix_sep + str(float(head)) for head in headers_list]
+    '''*************************************************'''
+
+    
+    '''****** Sorted Data (headers and table by headers) *****'''
+    def sorted_data(self, headers_list, new_table_once):        
+        headers_list, index_headers_list_sort = self.__get_sorted_headers_list_and_index(headers_list)
+        new_table_once = self.__sort_table_by_headers_indexes(new_table_once, index_headers_list_sort)
+        self.__nan_column_corrector(headers_list)
+        return headers_list, new_table_once
+        
+    def __get_sorted_headers_list_and_index(self, headers_list):
+        temp_headers_list = [str(head) for head in headers_list]
+        index_headers_list_sort = [i[0] for i in sorted(enumerate(temp_headers_list), key=lambda x:x[1])]
+        headers_list = sorted(temp_headers_list)
+        return headers_list, index_headers_list_sort
+    
+    def __sort_table_by_headers_indexes(self, new_table_once, index_headers_list_sort):
+        transpose_table = new_table_once.T
+        sorted_new_table = self.__sort_table_by_index(index_headers_list_sort, transpose_table)
+        return np.array(sorted_new_table).T
+
+    def __sort_table_by_index(self, index_headers_list_sort, table):
+        sorted_table = list()
+        for index_sorted in index_headers_list_sort:
+            for index, column in enumerate(table):
+                if index_sorted == index:
+                    sorted_table.append(column)
+        return sorted_table
+
+    def __nan_column_corrector(self, headers_list):
+        is_nan = self.__last_column_is_nan(headers_list)
+        return self.__change_str_nan_to_float_nan(headers_list) if is_nan == 'nan' else headers_list
+
+    def __last_column_is_nan(self, headers_list):
+        return headers_list[len(headers_list)-1]
+        
+    def __change_str_nan_to_float_nan(self, headers_list):
+        headers_list.pop()
+        headers_list.append(np.nan)
+        return headers_list
+    '''*************************************************'''
 
 
 class DataFrame_Utils_Processing:
+
+    '''****************Method if have column param*******************'''
     def columns_procesing(self, new_table_once, columns_list, headers_list, prefix,
                           prefix_sep, dummy_na_status,drop_first_status):
 
@@ -156,7 +206,7 @@ class DataFrame_Utils_Processing:
                                                        dummy_na=dummy_na_status,
                                                        drop_first=drop_first_status)
 
-                    new_table_once = self.__drop_last_version_column(new_table_once, headers_list, index)
+                    new_table_once = self.__remove_found_column_from_the_DataFrame(new_table_once, headers_list, index)
                     new_table_once = self.__concat_two_tables(new_table_once, decomposition_column)
 
         return new_table_once
@@ -167,15 +217,15 @@ class DataFrame_Utils_Processing:
     def __prefix_determinant(self, headers_list, index, prefix):
         return prefix if prefix is not None else headers_list[index]
 
-    def __drop_last_version_column(self, new_table_once, headers_list, index):
+    def __remove_found_column_from_the_DataFrame(self, new_table_once, headers_list, index):
         return new_table_once.drop(str(headers_list[index]), axis=1)
 
     def __concat_two_tables(self, left_table, second_table):
         list_tables = [left_table, second_table]
         return pd.concat(list_tables, axis=1)
+    '''************************************************'''
 
-
-
+    '''*************Method if there is no Columns parameter************'''
     def default_DataFrame_Procesing(self, new_table_once, data_values, headers_list, prefix,
                                     prefix_sep, dummy_na_status, drop_first_status):
 
@@ -191,11 +241,11 @@ class DataFrame_Utils_Processing:
                                                        dummy_na=dummy_na_status,
                                                        drop_first=drop_first_status)
 
-                    new_table_once = self.__drop_last_version_column(new_table_once, headers_list, index)
+                    new_table_once = self.__remove_found_column_from_the_DataFrame(new_table_once, headers_list, index)
                     new_table_once = self.__concat_two_tables(new_table_once, decomposition_column)
                     break
         return new_table_once
-
+    '''************************************************'''
 
 def get_dummies(data,
                 prefix=None,
@@ -232,18 +282,8 @@ def get_dummies(data,
         if prefix is not None:
             headers_list = utils.add_prefix(headers_list, prefix, prefix_sep)
 
-        # index_list_sort = [i[0] for i in sorted(enumerate(headers_list), key=lambda x:x[1])]
-        # temp_table = new_table_once.T
-        # empty_new_table = list()
+        headers_list, new_table_once = utils.sorted_data(headers_list, new_table_once)
 
-        # for index_sorted in index_list_sort:
-        #     for index, column in enumerate(temp_table):
-        #         if index_sorted == index:
-        #             empty_new_table.append(column)
-
-        # new_table_once = np.array(empty_new_table).T
-
-        # headers_list = sorted(headers_list)
         return pd.DataFrame(new_table_once, columns=headers_list)
 
     def Series_Processing(data: pd.Series):
